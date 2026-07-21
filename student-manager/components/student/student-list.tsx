@@ -64,10 +64,10 @@ export const StudentList = async ({
                 classDates?.length > 0
                     ? new Date(classDates[classDates.length - 1])
                     : null;
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const ninetyDaysAgo = new Date();
+            ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
             const status =
-                mostRecentDate && mostRecentDate > thirtyDaysAgo
+                mostRecentDate && mostRecentDate > ninetyDaysAgo
                     ? 'active'
                     : 'inactive';
 
