@@ -1,18 +1,28 @@
 import { AuthForm } from '@/components/auth-form';
+import { BrandLogo } from '@/components/brand-logo';
+import { ThemeToggle } from '@/components/theme-toggle';
 
-export default async function Page(props: {
-    searchParams?: Promise<{
-        error?: string;
-    }>;
+export default async function SignupPage(props: {
+    searchParams?: Promise<{ error?: string }>;
 }) {
     const searchParams = await props.searchParams;
-    const error = searchParams?.error || '';
 
     return (
-        <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-            <div className="w-full max-w-sm">
-                <AuthForm signup error={error} />
+        <div className="relative flex min-h-svh w-full flex-col items-center justify-center gap-8 p-6">
+            <div className="absolute top-4 right-4">
+                <ThemeToggle />
             </div>
+
+            <div className="flex flex-col items-center gap-3">
+                <BrandLogo
+                    variant="full"
+                    className="h-12 sm:h-14"
+                    priority
+                />
+                <p className="text-sm text-muted-foreground">Student Manager</p>
+            </div>
+
+            <AuthForm mode="signup" error={searchParams?.error} />
         </div>
     );
 }
