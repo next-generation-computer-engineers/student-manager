@@ -1,27 +1,27 @@
-import React from 'react';
+'use client';
 
-export const DateFilter: React.FC<{
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+export const DateFilter = ({
+    onChange,
+    defaultValue,
+    name,
+    text,
+}: {
     onChange: (value: string) => void;
-    defaultValue?: string;
+    defaultValue: string;
     name: string;
-    text?: string;
-}> = ({ onChange, defaultValue, name, text }) => {
-    const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        onChange(event.target.value);
-    };
-
+    text: string;
+}) => {
     return (
-        <div className="flex items-center gap-2">
-            <label htmlFor={name} className="text-sm font-medium text-gray-700">
-                {text}
-            </label>
-            <input
+        <div className="flex flex-col gap-2">
+            <Label htmlFor={`filter-${name}`}>{text}</Label>
+            <Input
+                id={`filter-${name}`}
                 type="date"
-                id={name}
-                name={name}
                 defaultValue={defaultValue}
-                onChange={handleDateChange}
-                className="block w-full rounded-md border border-gray-200 py-2 px-3 text-sm focus:border-blue-500 focus:ring-blue-500"
+                onChange={(event) => onChange(event.target.value)}
             />
         </div>
     );

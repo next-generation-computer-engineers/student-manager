@@ -1,23 +1,45 @@
+import { Suspense } from 'react';
+
+import { PageHeader } from '@/components/page-header';
 import Search from '@/components/search';
 import { StudentList } from '@/components/student/student-list';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export default async function Page(props: {
-    searchParams?: Promise<{
-        query?: string;
-    }>;
+function ListSkeleton() {
+    return (
+        <div className="grid gap-3">
+            {Array.from({ length: 5 }).map((_, index) => (
+                <Skeleton key={index} className="h-[88px] w-full rounded-lg" />
+            ))}
+        </div>
+    );
+}
+
+export default async function StudentSearchPage(props: {
+    searchParams?: Promise<{ query?: string; limit?: string }>;
 }) {
     const searchParams = await props.searchParams;
-    const query = searchParams?.query || '';
+    const query = searchParams?.query ?? '';
+
+    const parsedLimit = Number.parseInt(searchParams?.limit ?? '', 10);
+    const limit =
+        Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 10;
 
     return (
-        <div className="flex flex-col min-h-screen w-full p-6">
-            <h1 className="text-2xl font-bold mb-4">Search Students</h1>
-            <div className="flex flex-row gap-4 items-center">
-                <Search placeholder="Search for students..." />
-            </div>
-            <div className="mt-6 space-y-4">
-                <StudentList query={query} />
-            </div>
-        </div>
+        <>
+            <PageHeader
+                title="Students"
+                description="Search by name, parent phone number or parent email."
+            />
+
+            <Search
+                placeholder="Search students..."
+                filters={[{ name: 'limit', id: 'limit', text: 'Results' }]}
+            />
+
+            <Suspense key={`${query}-${limit}`} fallback={<ListSkeleton />}>
+                <StudentList query={query} limit={limit} />
+            </Suspense>
+        </>
     );
 }

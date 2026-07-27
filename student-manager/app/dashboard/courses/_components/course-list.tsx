@@ -1,4 +1,8 @@
-import { createClient } from '@/lib/supabase/server';
+import { BookOpen } from 'lucide-react';
+
+import { EmptyState } from '@/components/empty-state';
+import { getDataProvider } from '@/lib/data';
+
 import { CourseCard } from './course-card';
 
 export const CourseList = async ({
@@ -12,28 +16,32 @@ export const CourseList = async ({
     endDate?: Date;
     limit: number;
 }) => {
-    const client = await createClient();
-    const { data: courses, error } = await client
-        .from('classes')
-        .select('id, name, dates, start_date, end_date')
-        .ilike('name', `%${query}%`)
-        .gte(
-            'start_date',
-            startDate ? startDate.toISOString() : new Date(0).toISOString(),
-        )
-        .lte(
-            'end_date',
-            endDate ? endDate.toISOString() : new Date().toISOString(),
-        )
-        .order('start_date', { ascending: true })
-        .limit(limit);
+    const courses = await getDataProvider().listCourses({
+        query,
+        startDate,
+        endDate,
+        limit,
+    });
 
-    if (error) {
-        console.error('Error fetching courses:', error);
-        return <div>Error loading courses.</div>;
+    if (courses.length === 0) {
+        return (
+            <EmptyState
+                icon={BookOpen}
+                title="No courses found"
+                description={
+                    query
+                        ? `Nothing matched "${query}". Try a different search or widen the date filters.`
+                        : 'Import a sheet to add a course.'
+                }
+            />
+        );
     }
 
-    return courses.map((course) => (
-        <CourseCard key={course.id} course={course} />
-    ));
+    return (
+        <div className="grid gap-3">
+            {courses.map((course) => (
+                <CourseCard key={course.id} course={course} />
+            ))}
+        </div>
+    );
 };

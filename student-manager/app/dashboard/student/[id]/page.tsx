@@ -1,24 +1,34 @@
+import { ArrowLeft, BookOpen, MailIcon, PhoneIcon } from 'lucide-react';
 import Link from 'next/link';
-import { ProgressBar } from './_components/progress-bar';
-import { createClient } from '@/lib/supabase/server';
-import { AttendedStatus } from '@/lib/types';
-import { MailIcon, PhoneIcon } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { notFound } from 'next/navigation';
 
-interface Class {
-    id: string;
-    name: string;
-    level: string;
-    startDate: Date;
-    endDate: Date;
-    attendance: {
-        present: number;
-        late: number;
-        absent: number;
-        excused: number;
-    };
-    totalLessons: number;
+import { AttendanceBar } from '@/components/attendance/attendance-bar';
+import { LevelBadge } from '@/components/attendance/status-badge';
+import { EmptyState } from '@/components/empty-state';
+import { PageHeader } from '@/components/page-header';
+import { StatCard } from '@/components/stat-card';
+import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import { getDataProvider } from '@/lib/data';
+import { attendanceRate, tally } from '@/lib/types';
+
+function formatRange(dates: string[]): string {
+    if (dates.length === 0) return 'No dates';
+    const sorted = [...dates].sort();
+    const format = (value: string) =>
+        new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+        });
+    const start = format(sorted[0]);
+    const end = format(sorted[sorted.length - 1]);
+    return start === end ? start : `${start} – ${end}`;
 }
 
 export default async function StudentPage({
@@ -27,172 +37,182 @@ export default async function StudentPage({
     params: Promise<{ id: string }>;
 }) {
     const { id } = await params;
-    const client = await createClient();
-    const { data: studentData, error } = await client
-        .from('students')
-        .select('id, name, grade, parent_cells, parent_emails')
-        .eq('id', id)
-        .single();
-    const { data: studentAttendance, error: attendanceError } = await client
-        .from('attendance')
-        .select('id, classes(id, name, dates), level, attended_statuses')
-        .eq('student_id', id);
-    if (error || attendanceError) {
-        console.error('Error fetching student data:', error || attendanceError);
-        return <div>Error loading student data.</div>;
-    }
+    const studentId = Number.parseInt(id, 10);
+    if (!Number.isFinite(studentId)) notFound();
 
-    const processedClasses = studentAttendance.map((attendance) => {
-        interface AttendanceCounts {
-            present: number;
-            late: number;
-            absent: number;
-            excused: number;
-        }
+    const provider = getDataProvider();
+    const [student, enrollments] = await Promise.all([
+        provider.getStudent(studentId),
+        provider.getStudentEnrollments(studentId),
+    ]);
 
-        const attendanceCounts: AttendanceCounts =
-            attendance.attended_statuses.reduce(
-                (acc: AttendanceCounts, status: string) => {
-                    acc[status as AttendedStatus] =
-                        (acc[status as AttendedStatus] || 0) + 1;
-                    return acc;
-                },
-                { present: 0, late: 0, absent: 0, excused: 0 },
-            );
+    if (!student) notFound();
 
-        const classData = attendance.classes as unknown as {
-            id: string;
-            name: string;
-            dates: string[];
-        };
-        return {
-            id: classData.id,
-            name: classData.name,
-            level: attendance.level,
-            startDate: new Date(classData.dates[0]),
-            endDate: new Date(classData.dates[classData.dates.length - 1]),
-            attendance: attendanceCounts,
-            totalLessons: classData.dates.length,
-        } as Class;
-    });
+    const allStatuses = enrollments.flatMap((e) => e.attended_statuses);
+    const totals = tally(allStatuses);
+    const rate = attendanceRate(allStatuses);
 
     return (
-        <div className="flex flex-col min-h-screen w-full p-6">
-            <h1 className="text-2xl font-bold mb-4">Student Dashboard</h1>
-            <div className="mb-8">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <h2 className="text-xl font-semibold mb-2">
-                            {studentData.name}
-                        </h2>
-                        <p className="text-sm text-gray-600 mb-4">
-                            Grade: {studentData.grade} • Courses:{' '}
-                            {processedClasses.length}
-                        </p>
-                    </div>
-                    <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                        Active Student
-                    </div>
-                </div>
+        <>
+            <PageHeader
+                title={student.name}
+                description={
+                    student.grade !== null
+                        ? `Grade ${student.grade}`
+                        : 'Grade not recorded'
+                }
+                actions={
+                    <Button variant="outline" asChild>
+                        <Link href="/dashboard/search">
+                            <ArrowLeft className="size-4" />
+                            All students
+                        </Link>
+                    </Button>
+                }
+            />
 
-                <div className="mt-4 border-t pt-4">
-                    <h3 className="text-md font-medium mb-2">
-                        Parent Contact Information
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <p className="text-sm text-gray-500">
-                                Phone Numbers
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <StatCard
+                    label="Courses"
+                    value={enrollments.length}
+                    icon={BookOpen}
+                />
+                <StatCard
+                    label="Attendance rate"
+                    value={
+                        rate === null ? '—' : `${Math.round(rate * 100)}%`
+                    }
+                    hint="Present or late"
+                />
+                <StatCard label="Present" value={totals.present} />
+                <StatCard
+                    label="Absent"
+                    value={totals.absent}
+                    hint={`${totals.late} late · ${totals.excused} excused`}
+                />
+            </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Parent contact</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-6 sm:grid-cols-2">
+                    <div className="space-y-2">
+                        <p className="text-sm font-medium text-muted-foreground">
+                            Phone numbers
+                        </p>
+                        {student.parent_cells.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                None on file
                             </p>
-                            {studentData.parent_cells?.map(
-                                (cell: string, i: number) => (
-                                    <p
-                                        key={i}
-                                        className="flex items-center gap-2"
-                                    >
-                                        <PhoneIcon className="h-4 w-4 text-gray-400" />
+                        ) : (
+                            <ul className="space-y-1.5">
+                                {student.parent_cells.map((cell) => (
+                                    <li key={cell}>
                                         <a
                                             href={`tel:${cell}`}
-                                            className="text-blue-600 hover:underline"
+                                            className="inline-flex items-center gap-2 text-sm hover:text-primary hover:underline"
                                         >
+                                            <PhoneIcon className="size-3.5 text-muted-foreground" />
                                             {cell}
                                         </a>
-                                    </p>
-                                ),
-                            )}
-                        </div>
-                        <div>
-                            <p className="text-sm text-gray-500">
-                                Email Addresses
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <p className="text-sm font-medium text-muted-foreground">
+                            Email addresses
+                        </p>
+                        {student.parent_emails.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                None on file
                             </p>
-                            {studentData.parent_emails?.map(
-                                (email: string, i: number) => (
-                                    <p
-                                        key={i}
-                                        className="flex items-center gap-2"
-                                    >
-                                        <MailIcon className="h-4 w-4 text-gray-400" />
+                        ) : (
+                            <ul className="space-y-1.5">
+                                {student.parent_emails.map((email) => (
+                                    <li key={email} className="min-w-0">
                                         <a
                                             href={`mailto:${email}`}
-                                            className="text-blue-600 hover:underline"
+                                            className="inline-flex min-w-0 items-center gap-2 text-sm hover:text-primary hover:underline"
                                         >
-                                            {email}
+                                            <MailIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                                            <span className="truncate">
+                                                {email}
+                                            </span>
                                         </a>
-                                    </p>
-                                ),
-                            )}
-                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
-                </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Object.values(processedClasses)
-                    .sort(
-                        (a, b) => b.startDate.getTime() - a.startDate.getTime(),
-                    )
-                    .map((course) => (
-                        <Link
-                            key={course.id}
-                            href={`/dashboard/course/${course.id}`}
-                            className="bg-white shadow-md rounded-lg p-4"
-                        >
-                            <div className="flex items-center justify-between mb-2">
-                                <h2 className="text-lg font-semibold mb-2">
-                                    {course.name}
-                                </h2>
-                                <Badge
-                                    className={cn('text-black', {
-                                        'bg-green-300':
-                                            course.level === 'beginner',
-                                        'bg-yellow-300':
-                                            course.level === 'intermediate',
-                                        'bg-red-300':
-                                            course.level === 'advanced',
-                                    })}
+                </CardContent>
+            </Card>
+
+            <div className="space-y-3">
+                <h2 className="text-lg font-semibold tracking-tight">
+                    Course history
+                </h2>
+
+                {enrollments.length === 0 ? (
+                    <EmptyState
+                        icon={BookOpen}
+                        title="No courses yet"
+                        description="This student has not been enrolled in any course."
+                    />
+                ) : (
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {enrollments.map((enrollment) => {
+                            const counts = tally(enrollment.attended_statuses);
+                            return (
+                                <Link
+                                    key={enrollment.id}
+                                    href={`/dashboard/course/${enrollment.course.id}`}
+                                    className="flex flex-col gap-3 rounded-lg border bg-card p-4 transition-colors hover:bg-accent/60"
                                 >
-                                    {course.level}
-                                </Badge>
-                            </div>
-                            <p className="text-sm text-gray-600 mb-2">
-                                {course.startDate.toLocaleDateString()} -{' '}
-                                {course.endDate.toLocaleDateString()}
-                            </p>
-                            <div className="flex items-center justify-between mb-2">
-                                <span>Attendance:</span>
-                                <span>
-                                    {course.attendance.present}/
-                                    {course.attendance.late}/
-                                    {course.attendance.absent +
-                                        course.attendance.excused}
-                                </span>
-                            </div>
-                            <ProgressBar
-                                attendance={course.attendance}
-                                totalLessons={course.totalLessons}
-                            />
-                        </Link>
-                    ))}
+                                    <div className="flex items-start justify-between gap-3">
+                                        <h3 className="min-w-0 font-medium">
+                                            {enrollment.course.name}
+                                        </h3>
+                                        <LevelBadge
+                                            level={enrollment.level}
+                                            className="shrink-0"
+                                        />
+                                    </div>
+
+                                    <p className="text-xs text-muted-foreground">
+                                        {formatRange(enrollment.course.dates)}
+                                    </p>
+
+                                    <div className="mt-auto space-y-2">
+                                        <AttendanceBar
+                                            statuses={
+                                                enrollment.attended_statuses
+                                            }
+                                        />
+                                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                            <span className="text-present">
+                                                {counts.present} present
+                                            </span>
+                                            <span className="text-late">
+                                                {counts.late} late
+                                            </span>
+                                            <span className="text-excused">
+                                                {counts.excused} excused
+                                            </span>
+                                            <span className="text-absent">
+                                                {counts.absent} absent
+                                            </span>
+                                        </div>
+                                    </div>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
-        </div>
+        </>
     );
 }
