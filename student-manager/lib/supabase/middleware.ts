@@ -1,7 +1,13 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { isMockMode } from '@/lib/config';
+
 export async function updateSession(request: NextRequest) {
+    // The sandbox has no auth provider and no credentials, so there is no
+    // session to refresh and nothing to gate on.
+    if (isMockMode) return NextResponse.next({ request });
+
     let supabaseResponse = NextResponse.next({
         request,
     });
@@ -46,6 +52,9 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url);
     }
 
+    // Anonymous visitors on public routes have nothing to check.
+    if (!user) return supabaseResponse;
+
     const { data: amIApproved, error: amIApprovedError } = await supabase.rpc(
         'am_i_approved',
     );
@@ -59,7 +68,6 @@ export async function updateSession(request: NextRequest) {
 
     if (
         !amIApproved &&
-        user &&
         !request.nextUrl.pathname.startsWith('/awaiting-approval')
     ) {
         const url = request.nextUrl.clone();

@@ -1,7 +1,16 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
+import { isMockMode } from '@/lib/config';
+
 export async function createClient() {
+    if (isMockMode) {
+        throw new Error(
+            'Refusing to create a Supabase client while NEXT_PUBLIC_DATA_SOURCE is "mock". ' +
+                'Go through lib/data instead so dev work cannot reach production.',
+        );
+    }
+
     const cookieStore = await cookies();
 
     return createServerClient(
