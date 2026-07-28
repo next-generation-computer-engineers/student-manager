@@ -2,7 +2,7 @@ import { ArrowLeft, CalendarDays, Users } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { LevelBadge } from '@/components/attendance/status-badge';
+import { LevelBadge, STATUS_LABELS } from '@/components/attendance/status-badge';
 import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
@@ -20,17 +20,12 @@ import { LEVELS, tally, type AttendedStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 const CELL_STYLES: Record<AttendedStatus, string> = {
-    present: 'bg-present/12 text-present',
-    late: 'bg-late/15 text-late',
-    absent: 'bg-absent/12 text-absent',
-    excused: 'bg-excused/12 text-excused',
-};
-
-const CELL_LETTER: Record<AttendedStatus, string> = {
-    present: 'P',
-    late: 'L',
-    absent: 'A',
-    excused: 'E',
+    present:
+        'bg-present/30 text-present dark:bg-present/35 dark:text-present',
+    late: 'bg-late/35 text-late dark:bg-late/40 dark:text-late',
+    absent: 'bg-absent/30 text-absent dark:bg-absent/35 dark:text-absent',
+    excused:
+        'bg-excused/30 text-excused dark:bg-excused/35 dark:text-excused',
 };
 
 const LEGEND: AttendedStatus[] = ['present', 'late', 'excused', 'absent'];
@@ -125,32 +120,27 @@ export default async function CoursePage({
                     description="This course has no attendance records."
                 />
             ) : (
-                <div className="space-y-3">
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                <div className="min-w-0 space-y-3">
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                         <span>Legend:</span>
                         {LEGEND.map((status) => (
                             <span
                                 key={status}
-                                className="inline-flex items-center gap-1.5"
+                                className={cn(
+                                    'inline-flex items-center rounded px-2.5 py-1 text-sm font-medium',
+                                    CELL_STYLES[status],
+                                )}
                             >
-                                <span
-                                    className={cn(
-                                        'flex size-5 items-center justify-center rounded font-medium',
-                                        CELL_STYLES[status],
-                                    )}
-                                >
-                                    {CELL_LETTER[status]}
-                                </span>
-                                <span className="capitalize">{status}</span>
+                                {STATUS_LABELS[status]}
                             </span>
                         ))}
                     </div>
 
-                    <div className="scrollbar-thin overflow-x-auto rounded-lg border">
+                    <div className="min-w-0 max-w-full rounded-lg border">
                         <Table>
                             <TableHeader>
                                 <TableRow className="hover:bg-transparent">
-                                    <TableHead className="sticky left-0 z-20 min-w-[180px] bg-card">
+                                    <TableHead className="sticky left-0 z-[2] min-w-[180px] border-r bg-card">
                                         Student
                                     </TableHead>
                                     <TableHead className="min-w-[70px]">
@@ -162,7 +152,7 @@ export default async function CoursePage({
                                     {course.dates.map((date, index) => (
                                         <TableHead
                                             key={`${date}-${index}`}
-                                            className="min-w-[64px] text-center whitespace-nowrap"
+                                            className="min-w-[96px] whitespace-nowrap"
                                         >
                                             {formatHeaderDate(date)}
                                         </TableHead>
@@ -172,7 +162,7 @@ export default async function CoursePage({
                             <TableBody>
                                 {sorted.map((entry) => (
                                     <TableRow key={entry.student.id}>
-                                        <TableCell className="sticky left-0 z-10 bg-card font-medium">
+                                        <TableCell className="sticky left-0 z-[1] border-r bg-card font-medium">
                                             <Link
                                                 href={`/dashboard/student/${entry.student.id}`}
                                                 className="hover:text-primary hover:underline"
@@ -192,29 +182,16 @@ export default async function CoursePage({
                                             return (
                                                 <TableCell
                                                     key={`${date}-${index}`}
-                                                    className="text-center"
-                                                >
-                                                    {status ? (
-                                                        <span
-                                                            title={status}
-                                                            className={cn(
-                                                                'inline-flex size-6 items-center justify-center rounded text-xs font-medium',
-                                                                CELL_STYLES[
-                                                                    status
-                                                                ],
-                                                            )}
-                                                        >
-                                                            {
-                                                                CELL_LETTER[
-                                                                    status
-                                                                ]
-                                                            }
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-muted-foreground">
-                                                            –
-                                                        </span>
+                                                    className={cn(
+                                                        'min-w-[96px] px-2.5 py-2 text-sm font-medium whitespace-nowrap',
+                                                        status
+                                                            ? CELL_STYLES[status]
+                                                            : 'text-muted-foreground',
                                                     )}
+                                                >
+                                                    {status
+                                                        ? STATUS_LABELS[status]
+                                                        : '–'}
                                                 </TableCell>
                                             );
                                         })}
