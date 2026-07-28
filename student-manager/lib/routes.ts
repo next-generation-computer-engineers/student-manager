@@ -14,6 +14,8 @@ export interface Route {
     icon: LucideIcon;
     /** Match nested paths too, e.g. /dashboard/course/12 under Courses. */
     match?: string[];
+    /** Hidden from nav and blocked unless the user is an admin. */
+    adminOnly?: boolean;
 }
 
 export interface RouteGroup {
@@ -56,6 +58,7 @@ export const routeGroups: RouteGroup[] = [
                 title: 'Import a sheet',
                 url: '/dashboard/import',
                 icon: Upload,
+                adminOnly: true,
             },
             {
                 title: 'Merge students',

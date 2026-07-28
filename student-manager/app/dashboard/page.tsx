@@ -11,6 +11,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { isCurrentUserAdmin } from '@/lib/auth';
 import { getDataProvider } from '@/lib/data';
 import { ATTENDED_STATUSES } from '@/lib/types';
 
@@ -33,7 +34,10 @@ function formatRange(start: string | null, end: string | null): string {
 }
 
 export default async function DashboardPage() {
-    const overview = await getDataProvider().getOverview();
+    const [overview, isAdmin] = await Promise.all([
+        getDataProvider().getOverview(),
+        isCurrentUserAdmin(),
+    ]);
 
     const attended =
         overview.statusTotals.present + overview.statusTotals.late;
@@ -48,12 +52,14 @@ export default async function DashboardPage() {
                 title="Dashboard"
                 description="An overview of everything currently tracked."
                 actions={
-                    <Button asChild>
-                        <Link href="/dashboard/import">
-                            <Upload className="size-4" />
-                            Import a sheet
-                        </Link>
-                    </Button>
+                    isAdmin ? (
+                        <Button asChild>
+                            <Link href="/dashboard/import">
+                                <Upload className="size-4" />
+                                Import a sheet
+                            </Link>
+                        </Button>
+                    ) : undefined
                 }
             />
 

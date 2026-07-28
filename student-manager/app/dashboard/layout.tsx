@@ -8,18 +8,21 @@ import {
     SidebarProvider,
     SidebarTrigger,
 } from '@/components/ui/sidebar';
+import { isCurrentUserAdmin } from '@/lib/auth';
 
 // Always read live counts and rosters from Supabase — never a stale build cache.
 export const dynamic = 'force-dynamic';
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
+    const isAdmin = await isCurrentUserAdmin();
+
     return (
         <SidebarProvider>
-            <Sidebar account={<SidebarAccountInfo />} />
+            <Sidebar account={<SidebarAccountInfo />} isAdmin={isAdmin} />
             <SidebarInset>
                 <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur-sm">
                     <SidebarTrigger className="-ml-1" />

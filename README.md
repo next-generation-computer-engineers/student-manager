@@ -11,7 +11,7 @@ A pretty simple student tracker that's used to track attendance and search for s
 
 ## Features
 
-- Spreadsheet import (`.xlsx`, `.csv`, `.tsv`, or a Google Sheets link) with automatic column detection and a review step
+- Spreadsheet import (`.xlsx`, `.csv`, `.tsv`) with automatic column detection and a review step
 - Course searching
 - Student searching including phone number, email, and name
 - Attendance statistics per-day, including present/late/absent/excused
@@ -53,8 +53,7 @@ For Vercel, set the same two `NEXT_PUBLIC_*` variables in the project settings.
 
 Attendance used to be loaded by running `server/data-processing/process_data.py`
 followed by `insert_db.py`. That is now built into the app at
-**Dashboard → Import a sheet**, which accepts a file upload or a public Google
-Sheets link.
+**Dashboard → Import a sheet**, which accepts a file upload.
 
 The importer understands the layout those scripts expected (course name in `A1`,
 session dates from column G, no headers) and also detects labelled columns in

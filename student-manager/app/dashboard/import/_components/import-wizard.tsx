@@ -5,7 +5,6 @@ import {
     ArrowLeft,
     CheckCircle2,
     FileSpreadsheet,
-    Link2,
     Loader2,
     Upload,
     XCircle,
@@ -34,7 +33,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type {
     ColumnMapping,
     Issue,
@@ -55,10 +53,7 @@ interface ParseResponse {
     columns: ColumnInfo[];
 }
 
-type Source =
-    | { kind: 'file'; file: File }
-    | { kind: 'url'; url: string }
-    | null;
+type Source = { file: File } | null;
 
 const MAPPABLE: { key: keyof Omit<ColumnMapping, 'sessions'>; label: string }[] =
     [
@@ -128,54 +123,35 @@ export function ImportWizard() {
     const [result, setResult] = useState<ParseResponse | null>(null);
     const [summary, setSummary] = useState<ImportSummary | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [url, setUrl] = useState('');
     const [dragging, setDragging] = useState(false);
     const [parsing, setParsing] = useState(false);
     const [committing, startCommit] = useTransition();
 
     const runParse = useCallback(
         async (
-            next: Source,
+            file: File,
             overrides?: {
                 mapping?: ColumnMapping;
                 courseName?: string;
             },
         ) => {
-            if (!next) return;
-
             setParsing(true);
             setError(null);
 
             try {
-                let response: Response;
-
-                if (next.kind === 'file') {
-                    const form = new FormData();
-                    form.append('file', next.file);
-                    if (overrides?.mapping) {
-                        form.append(
-                            'mapping',
-                            JSON.stringify(overrides.mapping),
-                        );
-                    }
-                    if (overrides?.courseName) {
-                        form.append('courseName', overrides.courseName);
-                    }
-                    response = await fetch('/api/import/parse', {
-                        method: 'POST',
-                        body: form,
-                    });
-                } else {
-                    response = await fetch('/api/import/parse', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            url: next.url,
-                            mapping: overrides?.mapping,
-                            courseName: overrides?.courseName,
-                        }),
-                    });
+                const form = new FormData();
+                form.append('file', file);
+                if (overrides?.mapping) {
+                    form.append('mapping', JSON.stringify(overrides.mapping));
                 }
+                if (overrides?.courseName) {
+                    form.append('courseName', overrides.courseName);
+                }
+
+                const response = await fetch('/api/import/parse', {
+                    method: 'POST',
+                    body: form,
+                });
 
                 const payload = await response.json();
 
@@ -186,7 +162,7 @@ export function ImportWizard() {
                 }
 
                 setResult(payload as ParseResponse);
-                setSource(next);
+                setSource({ file });
             } catch {
                 setError('Something went wrong reading that spreadsheet.');
                 setResult(null);
@@ -203,7 +179,7 @@ export function ImportWizard() {
             ...result.sheet.mapping,
             [field]: value === NONE ? -1 : Number(value),
         };
-        void runParse(source, {
+        void runParse(source.file, {
             mapping,
             courseName: result.sheet.courseName,
         });
@@ -214,7 +190,6 @@ export function ImportWizard() {
         setResult(null);
         setSummary(null);
         setError(null);
-        setUrl('');
         if (inputRef.current) inputRef.current.value = '';
     };
 
@@ -569,134 +544,74 @@ export function ImportWizard() {
 
     // -------------------------------------------------------------- source
     return (
-        <Tabs defaultValue="file">
-            <TabsList>
-                <TabsTrigger value="file">
-                    <Upload className="size-4" />
-                    Upload a file
-                </TabsTrigger>
-                <TabsTrigger value="google">
-                    <Link2 className="size-4" />
-                    Google Sheets link
-                </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="file" className="mt-4">
-                <div
-                    onDragOver={(event) => {
-                        event.preventDefault();
-                        setDragging(true);
-                    }}
-                    onDragLeave={() => setDragging(false)}
-                    onDrop={(event) => {
-                        event.preventDefault();
-                        setDragging(false);
-                        const file = event.dataTransfer.files?.[0];
-                        if (file) void runParse({ kind: 'file', file });
-                    }}
-                    className={cn(
-                        'flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-16 text-center transition-colors',
-                        dragging
-                            ? 'border-primary bg-accent/60'
-                            : 'border-border',
-                    )}
-                >
-                    {parsing ? (
-                        <>
-                            <Loader2 className="size-8 animate-spin text-muted-foreground" />
-                            <p className="text-sm text-muted-foreground">
-                                Reading your spreadsheet…
+        <div className="space-y-4">
+            <div
+                onDragOver={(event) => {
+                    event.preventDefault();
+                    setDragging(true);
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(event) => {
+                    event.preventDefault();
+                    setDragging(false);
+                    const file = event.dataTransfer.files?.[0];
+                    if (file) void runParse(file);
+                }}
+                className={cn(
+                    'flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-16 text-center transition-colors',
+                    dragging
+                        ? 'border-primary bg-accent/60'
+                        : 'border-border',
+                )}
+            >
+                {parsing ? (
+                    <>
+                        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">
+                            Reading your spreadsheet…
+                        </p>
+                    </>
+                ) : (
+                    <>
+                        <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                            <FileSpreadsheet className="size-6 text-muted-foreground" />
+                        </div>
+                        <div className="space-y-1">
+                            <p className="font-medium">
+                                Drop a spreadsheet here
                             </p>
-                        </>
-                    ) : (
-                        <>
-                            <div className="flex size-12 items-center justify-center rounded-full bg-muted">
-                                <FileSpreadsheet className="size-6 text-muted-foreground" />
-                            </div>
-                            <div className="space-y-1">
-                                <p className="font-medium">
-                                    Drop a spreadsheet here
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    .xlsx, .xlsm, .csv or .tsv, up to 10 MB
-                                </p>
-                            </div>
-                            <Button
-                                variant="outline"
-                                onClick={() => inputRef.current?.click()}
-                            >
-                                Choose a file
-                            </Button>
-                            <input
-                                ref={inputRef}
-                                type="file"
-                                accept=".xlsx,.xlsm,.csv,.tsv,.txt"
-                                className="sr-only"
-                                onChange={(event) => {
-                                    const file = event.target.files?.[0];
-                                    if (file) {
-                                        void runParse({ kind: 'file', file });
-                                    }
-                                }}
-                            />
-                        </>
-                    )}
-                </div>
-            </TabsContent>
-
-            <TabsContent value="google" className="mt-4">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Import from Google Sheets</CardTitle>
-                        <CardDescription>
-                            The sheet must be shared. In Google Sheets choose
-                            Share, then set General access to &ldquo;Anyone with
-                            the link&rdquo;.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <form
-                            className="flex flex-col gap-3 sm:flex-row"
-                            onSubmit={(event) => {
-                                event.preventDefault();
-                                if (url.trim()) {
-                                    void runParse({
-                                        kind: 'url',
-                                        url: url.trim(),
-                                    });
+                            <p className="text-sm text-muted-foreground">
+                                .xlsx, .xlsm, .csv or .tsv, up to 10 MB
+                            </p>
+                        </div>
+                        <Button
+                            variant="outline"
+                            onClick={() => inputRef.current?.click()}
+                        >
+                            Choose a file
+                        </Button>
+                        <input
+                            ref={inputRef}
+                            type="file"
+                            accept=".xlsx,.xlsm,.csv,.tsv,.txt"
+                            className="sr-only"
+                            onChange={(event) => {
+                                const file = event.target.files?.[0];
+                                if (file) {
+                                    void runParse(file);
                                 }
                             }}
-                        >
-                            <Input
-                                value={url}
-                                onChange={(event) => setUrl(event.target.value)}
-                                placeholder="https://docs.google.com/spreadsheets/d/..."
-                                className="flex-1"
-                            />
-                            <Button
-                                type="submit"
-                                disabled={parsing || !url.trim()}
-                            >
-                                {parsing ? (
-                                    <>
-                                        <Loader2 className="size-4 animate-spin" />
-                                        Loading…
-                                    </>
-                                ) : (
-                                    'Load sheet'
-                                )}
-                            </Button>
-                        </form>
-                    </CardContent>
-                </Card>
-            </TabsContent>
+                        />
+                    </>
+                )}
+            </div>
 
             {error && (
-                <div className="mt-4 flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive ring-1 ring-destructive/25 ring-inset">
+                <div className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive ring-1 ring-destructive/25 ring-inset">
                     <XCircle className="mt-0.5 size-4 shrink-0" />
                     {error}
                 </div>
             )}
-        </Tabs>
+        </div>
     );
 }
