@@ -70,7 +70,7 @@ export async function signup(formData: FormData) {
 }
 
 export async function signOut() {
-    if (isMockMode) redirect('/auth/login');
+    if (isMockMode) redirect('/dashboard');
 
     const supabase = await createClient();
     await supabase.auth.signOut();

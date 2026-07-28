@@ -1,10 +1,15 @@
+import { redirect } from 'next/navigation';
+
 import { AuthForm } from '@/components/auth-form';
 import { BrandLogo } from '@/components/brand-logo';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { isMockMode } from '@/lib/config';
 
 export default async function SignupPage(props: {
     searchParams?: Promise<{ error?: string }>;
 }) {
+    if (isMockMode) redirect('/dashboard');
+
     const searchParams = await props.searchParams;
 
     return (
