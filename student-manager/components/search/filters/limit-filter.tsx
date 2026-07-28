@@ -1,34 +1,45 @@
-import React from 'react';
+'use client';
 
-const options = [10, 25, 50, 100];
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
-export const LimitFilter: React.FC<{
+const OPTIONS = ['10', '25', '50', '100'];
+
+export const LimitFilter = ({
+    onChange,
+    defaultValue,
+    name,
+    text,
+}: {
     onChange: (value: string) => void;
-    defaultValue?: string;
+    defaultValue: string;
     name: string;
-    text?: string;
-}> = ({ onChange, defaultValue, name, text }) => {
-    const handleLimitChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-        onChange(event.target.value);
-    };
+    text: string;
+}) => {
     return (
-        <div className="flex items-center gap-2">
-            <label htmlFor={name} className="text-sm font-medium text-gray-700">
-                {text || 'Limit'}
-            </label>
-            <select
-                id={name}
-                name={name}
-                defaultValue={defaultValue}
-                onChange={handleLimitChange}
-                className="block w-full rounded-md border border-gray-200 py-2 px-3 text-sm focus:border-blue-500 focus:ring-blue-500"
+        <div className="flex flex-col gap-2">
+            <Label htmlFor={`filter-${name}`}>{text}</Label>
+            <Select
+                defaultValue={defaultValue || '10'}
+                onValueChange={onChange}
             >
-                {options.map((option) => (
-                    <option key={option} value={option}>
-                        {option}
-                    </option>
-                ))}
-            </select>
+                <SelectTrigger id={`filter-${name}`} className="w-full">
+                    <SelectValue placeholder="10" />
+                </SelectTrigger>
+                <SelectContent>
+                    {OPTIONS.map((option) => (
+                        <SelectItem key={option} value={option}>
+                            {option} results
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
         </div>
     );
 };

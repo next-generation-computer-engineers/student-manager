@@ -1,22 +1,20 @@
-// https://nextjs.org/learn/dashboard-app/adding-search-and-pagination
 'use client';
 
-import { Search as SearchIcon } from 'lucide-react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { Search as SearchIcon, SlidersHorizontal, X } from 'lucide-react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import React from 'react';
 import { useDebouncedCallback } from 'use-debounce';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+
 import { DateFilter } from './filters/date-filter';
 import { LimitFilter } from './filters/limit-filter';
 
 const allFilters = {
-    date: {
-        name: 'date',
-        component: DateFilter,
-    },
-    limit: {
-        name: 'limit',
-        component: LimitFilter,
-    },
+    date: { name: 'date', component: DateFilter },
+    limit: { name: 'limit', component: LimitFilter },
 };
 
 export default function Search({
@@ -33,7 +31,11 @@ export default function Search({
     const { replace } = useRouter();
     const [showFilters, setShowFilters] = React.useState(false);
 
-    const handleSearch = useDebouncedCallback((term) => {
+    const activeFilterCount = filters.filter((filter) =>
+        searchParams.get(filter.id),
+    ).length;
+
+    const handleSearch = useDebouncedCallback((term: string) => {
         const params = new URLSearchParams(searchParams);
         if (term) {
             params.set(name, term);
@@ -53,57 +55,83 @@ export default function Search({
         replace(`${pathname}?${params.toString()}`);
     };
 
+    const clearFilters = () => {
+        const params = new URLSearchParams(searchParams);
+        filters.forEach((filter) => params.delete(filter.id));
+        replace(`${pathname}?${params.toString()}`);
+    };
+
     return (
-        <div className="relative flex flex-1 flex-shrink-0 flex-col gap-2">
-            <div className="relative flex w-full">
-                <label htmlFor="search" className="sr-only">
-                    Search
-                </label>
-                <input
-                    className="peer block w-full rounded-md border border-gray-200 py-[9px] pl-10 text-sm outline-2 placeholder:text-gray-500"
-                    placeholder={placeholder}
-                    onChange={(e) => {
-                        handleSearch(e.target.value);
-                    }}
-                    defaultValue={searchParams.get('query')?.toString()}
-                />
-                <SearchIcon className="absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-500 peer-focus:text-gray-900" />
+        <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                    <label htmlFor={`search-${name}`} className="sr-only">
+                        {placeholder}
+                    </label>
+                    <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                        id={`search-${name}`}
+                        className="pl-9"
+                        placeholder={placeholder}
+                        defaultValue={searchParams.get(name)?.toString() ?? ''}
+                        onChange={(event) => handleSearch(event.target.value)}
+                    />
+                </div>
 
                 {filters.length > 0 && (
-                    <button
-                        onClick={() => setShowFilters(!showFilters)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-gray-100 rounded-sm"
-                        aria-label="Toggle filters"
+                    <Button
+                        type="button"
+                        variant={showFilters ? 'secondary' : 'outline'}
+                        onClick={() => setShowFilters((open) => !open)}
+                        aria-expanded={showFilters}
                     >
-                        <div className="flex flex-col gap-1">
-                            <div className="w-5 h-0.5 bg-gray-500"></div>
-                            <div className="w-5 h-0.5 bg-gray-500"></div>
-                            <div className="w-5 h-0.5 bg-gray-500"></div>
-                        </div>
-                    </button>
+                        <SlidersHorizontal className="size-4" />
+                        Filters
+                        {activeFilterCount > 0 && (
+                            <span className="ml-1 rounded-full bg-primary px-1.5 text-xs font-medium text-primary-foreground tabular-nums">
+                                {activeFilterCount}
+                            </span>
+                        )}
+                    </Button>
                 )}
             </div>
 
             {showFilters && filters.length > 0 && (
-                <div className="grid grid-cols-3 gap-3 p-3 border rounded-md">
+                <div
+                    className={cn(
+                        'grid gap-4 rounded-lg border bg-card p-4',
+                        'sm:grid-cols-2 lg:grid-cols-3',
+                    )}
+                >
                     {filters.map((filter) => {
                         const FilterComponent =
                             allFilters[filter.name]?.component;
-                        return FilterComponent ? (
-                            <div key={filter.id} className="flex flex-col">
-                                <FilterComponent
-                                    onChange={(value) =>
-                                        handleFilterChange(filter.id, value)
-                                    }
-                                    defaultValue={
-                                        searchParams.get(filter.id) || ''
-                                    }
-                                    name={filter.name}
-                                    text={filter.text}
-                                />
-                            </div>
-                        ) : null;
+                        if (!FilterComponent) return null;
+                        return (
+                            <FilterComponent
+                                key={filter.id}
+                                onChange={(value) =>
+                                    handleFilterChange(filter.id, value)
+                                }
+                                defaultValue={searchParams.get(filter.id) || ''}
+                                name={filter.id}
+                                text={filter.text}
+                            />
+                        );
                     })}
+                    {activeFilterCount > 0 && (
+                        <div className="flex items-end">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={clearFilters}
+                            >
+                                <X className="size-4" />
+                                Clear filters
+                            </Button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

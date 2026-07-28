@@ -1,0 +1,14 @@
+{
+  "students": [],
+  "classes": [],
+  "attendance": [],
+  "users": [
+    {
+      "id": "dev-admin-0000-0000-000000000001",
+      "email": "admin@dev.local",
+      "approved": true,
+      "admin": true,
+      "created_at": "2025-01-15T09:00:00.000Z"
+    }
+  ]
+}

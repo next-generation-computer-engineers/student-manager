@@ -1,114 +1,102 @@
 'use client';
+
+import { MoreHorizontal } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useTransition } from 'react';
+import { toast } from 'sonner';
+
+import { setUserFlagsAction } from '@/app/dashboard/actions';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuLabel,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { createClient } from '@/lib/supabase/client';
-import { MoreHorizontal } from 'lucide-react';
+import type { AppUser } from '@/lib/types';
 
 export const UserTableActions = ({
     user,
+    isSelf,
 }: {
-    user: {
-        id: string;
-        created_at: string;
-        email: string;
-        approved: boolean;
-        admin: boolean;
-    };
+    user: AppUser;
+    isSelf: boolean;
 }) => {
-    const client = createClient();
+    const router = useRouter();
+    const [pending, startTransition] = useTransition();
+
+    const apply = (
+        patch: { approved?: boolean; admin?: boolean },
+        successMessage: string,
+    ) => {
+        startTransition(async () => {
+            const result = await setUserFlagsAction(user.id, patch);
+            if (!result.ok) {
+                toast.error(result.error ?? 'Update failed.');
+                return;
+            }
+            toast.success(successMessage);
+            router.refresh();
+        });
+    };
 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
+                <Button
+                    variant="ghost"
+                    className="size-8 p-0"
+                    disabled={pending}
+                >
                     <span className="sr-only">Open menu</span>
-                    <MoreHorizontal className="h-4 w-4" />
+                    <MoreHorizontal className="size-4" />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                {user.admin ? (
+                <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+
+                {user.approved ? (
                     <DropdownMenuItem
-                        onClick={async () => {
-                            const { error } = await client
-                                .from('users')
-                                .update({ admin: false })
-                                .eq('id', user.id);
-                            if (error) {
-                                console.error('Error demoting user:', error);
-                            } else {
-                                window.location.reload();
-                            }
-                        }}
+                        disabled={isSelf}
+                        onClick={() =>
+                            apply({ approved: false }, 'Access revoked.')
+                        }
                     >
-                        Demote from admin
+                        Revoke access
                     </DropdownMenuItem>
                 ) : (
-                    <>
-                        {user.approved ? (
-                            <DropdownMenuItem
-                                onClick={async () => {
-                                    const { error } = await client
-                                        .from('users')
-                                        .update({ approved: false })
-                                        .eq('id', user.id);
-                                    if (error) {
-                                        console.error(
-                                            'Error unapproving user:',
-                                            error,
-                                        );
-                                    } else {
-                                        window.location.reload();
-                                    }
-                                }}
-                            >
-                                Unapprove user
-                            </DropdownMenuItem>
-                        ) : (
-                            <DropdownMenuItem
-                                onClick={async () => {
-                                    const { error } = await client
-                                        .from('users')
-                                        .update({ approved: true })
-                                        .eq('id', user.id);
-                                    if (error) {
-                                        console.error(
-                                            'Error approving user:',
-                                            error,
-                                        );
-                                    } else {
-                                        window.location.reload();
-                                    }
-                                }}
-                            >
-                                Approve user
-                            </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem
-                            onClick={async () => {
-                                const { error } = await client
-                                    .from('users')
-                                    .update({ admin: true })
-                                    .eq('id', user.id);
-                                if (error) {
-                                    console.error(
-                                        'Error promoting user to admin:',
-                                        error,
-                                    );
-                                } else {
-                                    window.location.reload();
-                                }
-                            }}
-                        >
-                            Make admin
-                        </DropdownMenuItem>
-                    </>
+                    <DropdownMenuItem
+                        onClick={() =>
+                            apply({ approved: true }, 'User approved.')
+                        }
+                    >
+                        Approve user
+                    </DropdownMenuItem>
+                )}
+
+                {user.admin ? (
+                    <DropdownMenuItem
+                        disabled={isSelf}
+                        onClick={() =>
+                            apply({ admin: false }, 'Admin rights removed.')
+                        }
+                    >
+                        Remove admin
+                    </DropdownMenuItem>
+                ) : (
+                    <DropdownMenuItem
+                        onClick={() =>
+                            apply(
+                                { admin: true, approved: true },
+                                'User is now an admin.',
+                            )
+                        }
+                    >
+                        Make admin
+                    </DropdownMenuItem>
                 )}
             </DropdownMenuContent>
         </DropdownMenu>

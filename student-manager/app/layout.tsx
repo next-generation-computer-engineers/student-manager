@@ -1,5 +1,9 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+
+import { ThemeProvider } from '@/components/theme-provider';
+import { Toaster } from '@/components/ui/sonner';
+
 import './globals.css';
 
 const geistSans = Geist({
@@ -13,8 +17,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-    title: 'Student Manager',
-    description: 'A simple student management system',
+    title: 'CENG Student Manager',
+    description: 'Track courses, students and attendance for CENG.',
+    icons: {
+        icon: [
+            { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+            { url: '/icon.png', sizes: '48x48', type: 'image/png' },
+        ],
+        apple: [{ url: '/apple-touch-icon.png', sizes: '180x180' }],
+    },
 };
 
 export default function RootLayout({
@@ -23,11 +34,21 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en">
+        // suppressHydrationWarning is required: next-themes sets the class on
+        // <html> before React hydrates, so the server markup cannot match.
+        <html lang="en" suppressHydrationWarning>
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             >
-                {children}
+                <ThemeProvider
+                    attribute="class"
+                    defaultTheme="system"
+                    enableSystem
+                    disableTransitionOnChange
+                >
+                    {children}
+                    <Toaster richColors closeButton />
+                </ThemeProvider>
             </body>
         </html>
     );

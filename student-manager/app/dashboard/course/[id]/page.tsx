@@ -1,22 +1,43 @@
-import { createClient } from '@/lib/supabase/server';
+import { ArrowLeft, CalendarDays, Users } from 'lucide-react';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+
+import { LevelBadge, STATUS_LABELS } from '@/components/attendance/status-badge';
+import { EmptyState } from '@/components/empty-state';
+import { PageHeader } from '@/components/page-header';
+import { StatCard } from '@/components/stat-card';
+import { Button } from '@/components/ui/button';
 import {
     Table,
     TableBody,
     TableCell,
-    TableFooter,
     TableHead,
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { getDataProvider } from '@/lib/data';
+import { LEVELS, tally, type AttendedStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import Link from 'next/link';
 
-const toTitleCase = (str: string) => {
-    return str
-        .split(' ')
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
+const CELL_STYLES: Record<AttendedStatus, string> = {
+    present:
+        'bg-present/30 text-present dark:bg-present/35 dark:text-present',
+    late: 'bg-late/35 text-late dark:bg-late/40 dark:text-late',
+    absent: 'bg-absent/30 text-absent dark:bg-absent/35 dark:text-absent',
+    excused:
+        'bg-excused/30 text-excused dark:bg-excused/35 dark:text-excused',
 };
+
+const LEGEND: AttendedStatus[] = ['present', 'late', 'excused', 'absent'];
+
+function formatHeaderDate(value: string): string {
+    const date = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+    });
+}
 
 export default async function CoursePage({
     params,
@@ -24,121 +45,163 @@ export default async function CoursePage({
     params: Promise<{ id: string }>;
 }) {
     const { id } = await params;
-    const client = await createClient();
-    const { data: course, error: courseError } = await client
-        .from('classes')
-        .select('id, name, dates')
-        .eq('id', id)
-        .single();
-    const { data: students, error: studentsError } = await client
-        .from('attendance')
-        .select('students(id, name, grade), level, attended_statuses')
-        .eq('class_id', id);
-    if (courseError) {
-        console.error('Error fetching course:', courseError);
-        return <div>Error loading course details.</div>;
-    }
-    if (studentsError) {
-        console.error('Error fetching students:', studentsError);
-        return <div>Error loading student attendance.</div>;
-    }
+    const courseId = Number.parseInt(id, 10);
+    if (!Number.isFinite(courseId)) notFound();
 
-    students.sort((a, b) => {
-        const levels = ['beginner', 'intermediate', 'advanced'];
-        return (
-            levels.indexOf(a.level) - levels.indexOf(b.level) ||
-            // @ts-expect-error bro supabase is dumb
-            a.students.name.localeCompare(b.students.name)
-        );
+    const provider = getDataProvider();
+    const [course, roster] = await Promise.all([
+        provider.getCourse(courseId),
+        provider.getCourseRoster(courseId),
+    ]);
+
+    if (!course) notFound();
+
+    const sorted = [...roster].sort((a, b) => {
+        const levelDelta =
+            LEVELS.indexOf(a.level ?? 'beginner') -
+            LEVELS.indexOf(b.level ?? 'beginner');
+        return levelDelta || a.student.name.localeCompare(b.student.name);
     });
 
+    const allStatuses = roster.flatMap((entry) => entry.attended_statuses);
+    const totals = tally(allStatuses);
+    const graded = totals.present + totals.late + totals.absent;
+    const rate =
+        graded > 0
+            ? Math.round(((totals.present + totals.late) / graded) * 100)
+            : null;
+
     return (
-        <div className="flex flex-col min-h-screen w-full p-6">
-            <h1 className="text-2xl font-bold mb-4">Course Dashboard</h1>
-            <h2 className="text-xl font-semibold mb-2">{course.name}</h2>
-            <div className="overflow-x-auto">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="sticky left-0 bg-white">
-                                Student Name
-                            </TableHead>
-                            <TableHead>Grade</TableHead>
-                            <TableHead>Level</TableHead>
-                            {course.dates.map((date: string) => (
-                                <TableHead key={date}>{date}</TableHead>
-                            ))}
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {students.map((s) => {
-                            const student = s as unknown as {
-                                students: {
-                                    id: string;
-                                    name: string;
-                                    grade: string;
-                                };
-                                level: string;
-                                attended_statuses: string[];
-                            };
-                            return (
-                                <TableRow key={student.students.id}>
-                                    <TableCell className="sticky left-0 bg-white">
-                                        <Link
-                                            href={`/dashboard/student/${student.students.id}`}
-                                            className="text-blue-600 hover:underline"
-                                        >
-                                            {student.students.name}
-                                        </Link>
-                                    </TableCell>
-                                    <TableCell>
-                                        {student.students.grade}
-                                    </TableCell>
-                                    <TableCell
-                                        className={cn({
-                                            'bg-green-300':
-                                                student.level === 'beginner',
-                                            'bg-yellow-300':
-                                                student.level ===
-                                                'intermediate',
-                                            'bg-red-300':
-                                                student.level === 'advanced',
-                                        })}
-                                    >
-                                        {toTitleCase(student.level)}
-                                    </TableCell>
-                                    {student.attended_statuses.map(
-                                        (status: string, index: number) => (
-                                            <TableCell
-                                                key={index}
-                                                className={cn({
-                                                    'bg-green-100':
-                                                        status === 'present',
-                                                    'bg-yellow-100':
-                                                        status === 'late',
-                                                    'bg-red-100':
-                                                        status === 'absent',
-                                                    'bg-gray-100':
-                                                        status === 'excused',
-                                                })}
-                                            >
-                                                {toTitleCase(status)}
-                                            </TableCell>
-                                        ),
-                                    )}
-                                </TableRow>
-                            );
-                        })}
-                    </TableBody>
-                    <TableFooter>
-                        <TableRow>
-                            <TableCell colSpan={course.dates.length + 3}>
-                                Total Students: {students.length}
-                            </TableCell>
-                        </TableRow>
-                    </TableFooter>
-                </Table>
+        <>
+            <PageHeader
+                title={course.name}
+                description={
+                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="inline-flex items-center gap-1.5">
+                            <CalendarDays className="size-3.5" />
+                            {course.dates.length}{' '}
+                            {course.dates.length === 1 ? 'session' : 'sessions'}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                            <Users className="size-3.5" />
+                            {roster.length} enrolled
+                        </span>
+                    </span>
+                }
+                actions={
+                    <Button variant="outline" asChild>
+                        <Link href="/dashboard/courses">
+                            <ArrowLeft className="size-4" />
+                            All courses
+                        </Link>
+                    </Button>
+                }
+            />
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <StatCard label="Students" value={roster.length} icon={Users} />
+                <StatCard
+                    label="Attendance rate"
+                    value={rate === null ? '—' : `${rate}%`}
+                    hint="Present or late"
+                />
+                <StatCard label="Present" value={totals.present} />
+                <StatCard
+                    label="Absent"
+                    value={totals.absent}
+                    hint={`${totals.late} late · ${totals.excused} excused`}
+                />
             </div>
-        </div>
+
+            {sorted.length === 0 ? (
+                <EmptyState
+                    icon={Users}
+                    title="Nobody is enrolled yet"
+                    description="This course has no attendance records."
+                />
+            ) : (
+                <div className="min-w-0 space-y-3">
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                        <span>Legend:</span>
+                        {LEGEND.map((status) => (
+                            <span
+                                key={status}
+                                className={cn(
+                                    'inline-flex items-center rounded px-2.5 py-1 text-sm font-medium',
+                                    CELL_STYLES[status],
+                                )}
+                            >
+                                {STATUS_LABELS[status]}
+                            </span>
+                        ))}
+                    </div>
+
+                    <div className="min-w-0 max-w-full rounded-lg border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="hover:bg-transparent">
+                                    <TableHead className="sticky left-0 z-[2] min-w-[180px] border-r bg-card">
+                                        Student
+                                    </TableHead>
+                                    <TableHead className="min-w-[70px]">
+                                        Grade
+                                    </TableHead>
+                                    <TableHead className="min-w-[120px]">
+                                        Level
+                                    </TableHead>
+                                    {course.dates.map((date, index) => (
+                                        <TableHead
+                                            key={`${date}-${index}`}
+                                            className="min-w-[96px] whitespace-nowrap"
+                                        >
+                                            {formatHeaderDate(date)}
+                                        </TableHead>
+                                    ))}
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {sorted.map((entry) => (
+                                    <TableRow key={entry.student.id}>
+                                        <TableCell className="sticky left-0 z-[1] border-r bg-card font-medium">
+                                            <Link
+                                                href={`/dashboard/student/${entry.student.id}`}
+                                                className="hover:text-primary hover:underline"
+                                            >
+                                                {entry.student.name}
+                                            </Link>
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground tabular-nums">
+                                            {entry.student.grade ?? '—'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <LevelBadge level={entry.level} />
+                                        </TableCell>
+                                        {course.dates.map((date, index) => {
+                                            const status =
+                                                entry.attended_statuses[index];
+                                            return (
+                                                <TableCell
+                                                    key={`${date}-${index}`}
+                                                    className={cn(
+                                                        'min-w-[96px] px-2.5 py-2 text-sm font-medium whitespace-nowrap',
+                                                        status
+                                                            ? CELL_STYLES[status]
+                                                            : 'text-muted-foreground',
+                                                    )}
+                                                >
+                                                    {status
+                                                        ? STATUS_LABELS[status]
+                                                        : '–'}
+                                                </TableCell>
+                                            );
+                                        })}
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }
