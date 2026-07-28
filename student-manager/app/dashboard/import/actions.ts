@@ -36,11 +36,27 @@ export async function commitImportAction(
         return { ok: false, error: blocking[0].message };
     }
 
+    const invalidDateIndex = (sheet.dates ?? []).findIndex(
+        (value) => !/^\d{4}-\d{2}-\d{2}$/.test(value),
+    );
+    if (invalidDateIndex !== -1) {
+        return {
+            ok: false,
+            error: `Session ${invalidDateIndex + 1} is missing a valid date. Use the preview to map session columns to date headers.`,
+        };
+    }
+
     for (const student of sheet.students) {
         if (!student.name?.trim()) {
             return {
                 ok: false,
                 error: `Row ${student.row} has no student name.`,
+            };
+        }
+        if (student.level === null) {
+            return {
+                ok: false,
+                error: `Row ${student.row} has no level. Map the Level column or fill it in before importing.`,
             };
         }
         if (student.attended_statuses.length !== sheet.dates.length) {
