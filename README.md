@@ -31,6 +31,9 @@ the database.
    NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...   # anon / public key from API settings
    ```
+   Each user row in `public.users` has an **`organization_id`**. Imports stamp that
+   id on every new students, classes, and attendance row automatically — nothing
+   extra to configure.
    Use the **anon (public) key** — the long JWT starting with `eyJ`, not the
    service role key.
 3. Install and run:

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { hasCengStaffEmail } from '@/lib/import/normalize';
+import { getOrganizationId } from '@/lib/organization';
 import type { ImportSummary, ParsedSheet } from '@/lib/import/types';
 import type {
     AppUser,
@@ -283,17 +284,14 @@ export class SupabaseProvider implements DataProvider {
 
     async importSheet(sheet: ParsedSheet): Promise<ImportSummary> {
         const client = await createClient();
-
-        const dates = sheet.dates.filter((d) => d !== '');
-        const sorted = [...dates].sort();
+        const organization = await getOrganizationId();
 
         const { data: course, error: courseError } = await client
             .from('classes')
             .insert({
                 name: sheet.courseName,
                 dates: sheet.dates,
-                start_date: sorted[0] ?? null,
-                end_date: sorted[sorted.length - 1] ?? null,
+                organization,
             })
             .select('id, name')
             .single();
@@ -306,6 +304,7 @@ export class SupabaseProvider implements DataProvider {
         const { data: existing, error: existingError } = await client
             .from('students')
             .select(STUDENT_COLUMNS)
+            .eq('organization', organization)
             .in('name', names);
 
         if (existingError) throw new Error(existingError.message);
@@ -317,7 +316,7 @@ export class SupabaseProvider implements DataProvider {
             ]),
         );
 
-        const toCreate: Omit<Student, 'id'>[] = [];
+        const toCreate: Array<Omit<Student, 'id'>> = [];
         const toUpdate: Student[] = [];
 
         for (const row of sheet.students) {
@@ -338,12 +337,17 @@ export class SupabaseProvider implements DataProvider {
                         grade,
                     });
                 }
-            } else if (!toCreate.some((s) => normalizeName(s.name) === normalizeName(row.name))) {
+            } else if (
+                !toCreate.some(
+                    (s) => normalizeName(s.name) === normalizeName(row.name),
+                )
+            ) {
                 toCreate.push({
                     name: row.name,
                     grade: row.grade,
                     parent_cells: row.parent_cells,
                     parent_emails: row.parent_emails,
+                    organization,
                 });
             }
         }
@@ -367,7 +371,8 @@ export class SupabaseProvider implements DataProvider {
                     parent_emails: student.parent_emails,
                     grade: student.grade,
                 })
-                .eq('id', student.id);
+                .eq('id', student.id)
+                .eq('organization', organization);
             if (error) throw new Error(error.message);
         }
 
@@ -380,6 +385,7 @@ export class SupabaseProvider implements DataProvider {
                     class_id: course.id,
                     level: row.level,
                     attended_statuses: row.attended_statuses,
+                    organization,
                 };
             })
             .filter((row): row is NonNullable<typeof row> => row !== null);

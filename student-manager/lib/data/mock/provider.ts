@@ -10,6 +10,8 @@ import type {
     StudentSummary,
 } from '@/lib/types';
 
+import { getOrganizationId } from '@/lib/organization';
+
 import type {
     CourseQuery,
     DataProvider,
@@ -264,6 +266,7 @@ export class MockProvider implements DataProvider {
 
     async importSheet(sheet: ParsedSheet): Promise<ImportSummary> {
         const store = getStore();
+        const organization = await getOrganizationId();
 
         const dates = sheet.dates.filter((d) => d !== '');
         const sorted = [...dates].sort();
@@ -274,11 +277,14 @@ export class MockProvider implements DataProvider {
             dates: sheet.dates,
             start_date: sorted[0] ?? null,
             end_date: sorted[sorted.length - 1] ?? null,
+            organization,
         };
         store.classes.push(course);
 
         const byName = new Map(
-            store.students.map((s) => [normalizeName(s.name), s]),
+            store.students
+                .filter((s) => s.organization === organization)
+                .map((s) => [normalizeName(s.name), s]),
         );
 
         let studentsCreated = 0;
@@ -309,6 +315,7 @@ export class MockProvider implements DataProvider {
                     grade: row.grade,
                     parent_cells: row.parent_cells,
                     parent_emails: row.parent_emails,
+                    organization,
                 };
                 store.students.push(student);
                 byName.set(key, student);
@@ -321,6 +328,7 @@ export class MockProvider implements DataProvider {
                 class_id: course.id,
                 level: row.level,
                 attended_statuses: row.attended_statuses,
+                organization,
             });
             attendanceRows += 1;
         }

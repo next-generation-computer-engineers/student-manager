@@ -17,6 +17,7 @@ export interface Student {
     grade: number | null;
     parent_cells: string[];
     parent_emails: string[];
+    organization?: number;
 }
 
 export interface Course {
@@ -25,6 +26,7 @@ export interface Course {
     dates: string[];
     start_date: string | null;
     end_date: string | null;
+    organization?: number;
 }
 
 export interface AttendanceRecord {
@@ -33,6 +35,7 @@ export interface AttendanceRecord {
     class_id: number;
     level: Level | null;
     attended_statuses: AttendedStatus[];
+    organization?: number;
 }
 
 /** A student plus the activity summary shown in list views. */
