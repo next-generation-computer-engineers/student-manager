@@ -20,18 +20,31 @@ A pretty simple student tracker that's used to track attendance and search for s
 
 ## Setting up locally
 
-1. Create a Supabase project (or use the existing one).
+The app reads **live data from Supabase** — students, courses, and attendance
+are not bundled in the repo. Connect your project and everything populates from
+the database.
+
+1. Open the shared Supabase project (or create one with the same schema as
+   production).
 2. Copy `student-manager/.env.example` to `student-manager/.env.local` and set:
    ```
-   NEXT_PUBLIC_SUPABASE_URL=
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=
+   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...   # anon / public key from API settings
    ```
+   Use the **anon (public) key** — the long JWT starting with `eyJ`, not the
+   service role key.
 3. Install and run:
    ```bash
    cd student-manager
    npm install
    npm run dev
    ```
+4. Sign up at `/auth/signup`. A new account needs an **admin to approve** it
+   under **Dashboard → Approvals** before you can use the app.
+5. Import attendance sheets at **Dashboard → Import a sheet**, or use data
+   already in Supabase — the dashboard updates on every request.
+
+For Vercel, set the same two `NEXT_PUBLIC_*` variables in the project settings.
 
 ## Importing attendance sheets
 

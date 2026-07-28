@@ -14,9 +14,6 @@ import {
 import { getDataProvider } from '@/lib/data';
 import { ATTENDED_STATUSES } from '@/lib/types';
 
-// Counts change on every import, so never serve this from the build-time cache.
-export const dynamic = 'force-dynamic';
-
 const STATUS_BAR: Record<string, string> = {
     present: 'bg-present',
     late: 'bg-late',

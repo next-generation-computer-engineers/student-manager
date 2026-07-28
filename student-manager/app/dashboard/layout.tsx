@@ -9,6 +9,9 @@ import {
     SidebarTrigger,
 } from '@/components/ui/sidebar';
 
+// Always read live counts and rosters from Supabase — never a stale build cache.
+export const dynamic = 'force-dynamic';
+
 export default function DashboardLayout({
     children,
 }: Readonly<{
