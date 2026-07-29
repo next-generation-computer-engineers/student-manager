@@ -1,3 +1,5 @@
+import { cache } from 'react';
+
 import { isMockMode } from '@/lib/config';
 import { getDataProvider } from '@/lib/data';
 import { createClient } from '@/lib/supabase/server';
@@ -30,10 +32,10 @@ export async function amIApproved(): Promise<boolean> {
     return Boolean(data);
 }
 
-export async function isCurrentUserAdmin(): Promise<boolean> {
+export const isCurrentUserAdmin = cache(async (): Promise<boolean> => {
     const user = await getSessionUser();
     if (!user) return false;
 
-    const users = await getDataProvider().listUsers();
-    return users.some((row) => row.id === user.id && row.admin);
-}
+    const row = await getDataProvider().getUser(user.id);
+    return row?.admin ?? false;
+});

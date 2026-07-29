@@ -45,6 +45,7 @@ export interface DataProvider {
     mergeStudents(keepId: number, absorbId: number): Promise<void>;
 
     listUsers(): Promise<AppUser[]>;
+    getUser(id: string): Promise<AppUser | null>;
     setUserFlags(
         id: string,
         patch: Partial<Pick<AppUser, 'approved' | 'admin'>>,

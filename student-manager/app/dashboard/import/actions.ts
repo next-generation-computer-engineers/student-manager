@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 
+import { isCurrentUserAdmin } from '@/lib/auth';
 import { getDataProvider } from '@/lib/data';
 import type { ImportSummary, ParsedSheet } from '@/lib/import/types';
 
@@ -16,6 +17,10 @@ export type CommitResult =
 export async function commitImportAction(
     sheet: ParsedSheet,
 ): Promise<CommitResult> {
+    if (!(await isCurrentUserAdmin())) {
+        return { ok: false, error: 'Only admins can import sheets.' };
+    }
+
     if (!sheet || typeof sheet !== 'object') {
         return { ok: false, error: 'Nothing to import.' };
     }

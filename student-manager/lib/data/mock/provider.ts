@@ -221,6 +221,11 @@ export class MockProvider implements DataProvider {
         return tick(users);
     }
 
+    async getUser(id: string): Promise<AppUser | null> {
+        const user = getStore().users.find((u) => u.id === id) ?? null;
+        return tick(user);
+    }
+
     async setUserFlags(
         id: string,
         patch: Partial<Pick<AppUser, 'approved' | 'admin'>>,

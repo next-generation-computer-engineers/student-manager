@@ -226,6 +226,18 @@ export class SupabaseProvider implements DataProvider {
         return (data ?? []) as AppUser[];
     }
 
+    async getUser(id: string): Promise<AppUser | null> {
+        const client = await createClient();
+        const { data, error } = await client
+            .from('users')
+            .select('id, created_at, email, approved, admin')
+            .eq('id', id)
+            .maybeSingle();
+
+        if (error) throw new Error(error.message);
+        return (data as AppUser | null) ?? null;
+    }
+
     async setUserFlags(
         id: string,
         patch: Partial<Pick<AppUser, 'approved' | 'admin'>>,
